@@ -1,95 +1,65 @@
 name: SendDataUpdatedEmail
-
-on:
+'on':
   workflow_run:
-    # workflows: [FetchSurveillance]
-    workflows: [ValidateSurveillance]
-      
+    workflows:
+    - ValidateSurveillance
     types:
-      - completed  
-
-  workflow_dispatch:
-
+    - completed
+  workflow_dispatch: null
 jobs:
   scheduled-submit:
-    if:  github.repository_owner == 'Predizioni-Epidemiologiche-Italia' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'))
+    if: github.repository_owner == 'playground-nils' && (github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion
+      == 'success'))
     runs-on: ubuntu-latest
-    
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Read email body
+      id: get_body
+      run: 'BODY=$(cat .github/email_templates/fetch_completed.txt)
 
-      # # Install Python
-      # - name: Set up Python
-      #   uses: actions/setup-python@v3
-      #   with:
-      #     python-version: '3.x'
+        echo "body<<EOF" >> $GITHUB_OUTPUT
 
-         
-      # Checkout the python tools repo
-      # -------------------------------------------      
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        
+        echo "$BODY" >> $GITHUB_OUTPUT
 
-      # Checkout the python tools repo
-      # used to verify the PR changes 
-      # ------------------------------------------
-      # - name: checkout python tools repo
-      #   uses: actions/checkout@v3
-      #   with:
-      #     token: ${{ secrets.GITHUB_TOKEN }}
-      #     repository: 'Predizioni-Epidemiologiche-Italia/hub-tools'
-      #     ref: 'main'
-      #     path: tools
+        echo "EOF" >> $GITHUB_OUTPUT
 
-      # - name: install deps
-      #   run: |
-      #     pip install PyYAML
-
-
-      # # Check if some submission is outside allowed folders
-      # - name: Extract Mailing List
-      #   id: extract_from_metadata
-      #   run: |
-      #     python ./tools/code/extract_emails.py --mail-list ${{ secrets.mail_list }} # a blank separated list of mail adresses
-
-      - name: Read email body
-        id: get_body
-        run: |
-          BODY=$(cat .github/email_templates/fetch_completed.txt)
-          echo "body<<EOF" >> $GITHUB_OUTPUT
-          echo "$BODY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          
-      # Send the email
-      - name: Send email to teams
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "Influcast Surveillance Data Update"
-          body: ${{ steps.get_body.outputs.body }}
-          to: influcast@isi.it
-          bcc: ${{ secrets.EMAIL_RECIPIENTS }}
-          from: "Influcast Team <influcast@isi.it>"
-          content_type: text/plain
-
+        '
+    - name: Send email to teams
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.gmail.com
+        server_port: 587
+        username: ${{ secrets.EMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: Influcast Surveillance Data Update
+        body: ${{ steps.get_body.outputs.body }}
+        to: influcast@isi.it
+        bcc: ${{ secrets.EMAIL_RECIPIENTS }}
+        from: Influcast Team <influcast@isi.it>
+        content_type: text/plain
   scheduled-submit-failure:
-    if:  github.repository_owner == 'Predizioni-Epidemiologiche-Italia' && (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure')
+    if: github.repository_owner == 'playground-nils' && (github.event_name == 'workflow_run'
+      && github.event.workflow_run.conclusion == 'failure')
     runs-on: ubuntu-latest
-
     steps:
-      - name: Send warning email to admin        
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "Influcast - Surveillance fetching error!"
-          body: "Hi,\n\nAn error occurred during data import process from epicentro.iss.it. Not sending data updated email to teams!\n\nInflucast tech team."
-          to: ${{ secrets.EMAIL_RECIPIENTS_ADMIN }}
-          from: "Influcast Team <influcast@isi.it>"
-          content_type: text/plain
-          
+    - name: Send warning email to admin
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.gmail.com
+        server_port: 587
+        username: ${{ secrets.EMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: Influcast - Surveillance fetching error!
+        body: 'Hi,
+
+
+          An error occurred during data import process from epicentro.iss.it. Not
+          sending data updated email to teams!
+
+
+          Influcast tech team.'
+        to: ${{ secrets.EMAIL_RECIPIENTS_ADMIN }}
+        from: Influcast Team <influcast@isi.it>
+        content_type: text/plain
